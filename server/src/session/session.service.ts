@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Session } from '../schemas/session.schema';
+import { excludeFileTypes } from 'src/utils/exclude-files.type';
 
 @Injectable()
 export class SessionsService {
@@ -16,6 +17,11 @@ export class SessionsService {
 
   async getDailyStats() {
     return this.sessionModel.aggregate([
+      {
+        $match: {
+          file_type: { $nin: excludeFileTypes },
+        },
+      },
       {
         $group: {
           _id: {
