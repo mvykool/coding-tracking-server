@@ -15,48 +15,30 @@ export class SessionsController {
 
   private convertToEasternTime(timestamp: number): Date {
     // Create a date object from the Unix timestamp
-    const utcDate = new Date(timestamp * 1000);
+    const date = new Date(timestamp * 1000);
 
-    // Create a formatter for Eastern Time
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-
-    // Get the parts
-    const parts = formatter.formatToParts(utcDate);
-    const dateObj: { [key: string]: string } = {};
-    parts.forEach((part) => {
-      if (part.type !== 'literal') {
-        dateObj[part.type] = part.value;
-      }
-    });
-
-    // Construct a new date in Eastern Time
-    return new Date(
-      `${dateObj.year}-${dateObj.month}-${dateObj.day}T${dateObj.hour}:${dateObj.minute}:${dateObj.second}`,
+    // Convert to Eastern Time
+    const easternDate = new Date(
+      date.toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+      }),
     );
+
+    return easternDate;
   }
 
-  private formatEasternDate(date: Date): string {
+  private formatEasternDate(timestamp: number): string {
+    const date = new Date(timestamp * 1000);
+
+    // Get Eastern Time date components
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/New_York',
-      year: 'numeric',
       month: '2-digit',
       day: '2-digit',
+      year: 'numeric',
     });
 
-    const parts = formatter.formatToParts(date);
-    const month = parts.find((p) => p.type === 'month')?.value;
-    const day = parts.find((p) => p.type === 'day')?.value;
-    const year = parts.find((p) => p.type === 'year')?.value;
-
-    return `${month}-${day}-${year}`;
+    return formatter.format(date);
   }
 
   @Post('track')
@@ -64,17 +46,18 @@ export class SessionsController {
     @Body() body: CreateSessionDto,
   ): Promise<{ status: string }> {
     try {
-      const startTimeET = this.convertToEasternTime(body.start_time);
-      const endTimeET = this.convertToEasternTime(body.end_time);
+      // Format the date using the start timestamp directly
+      const dateStr = this.formatEasternDate(body.start_time);
 
       const session: Session = {
         file_type: body.file_type,
-        start_time: startTimeET,
-        end_time: endTimeET,
+        start_time: new Date(body.start_time * 1000), // Store as UTC
+        end_time: new Date(body.end_time * 1000), // Store as UTC
         duration: body.duration,
-        date: this.formatEasternDate(startTimeET),
+        date: dateStr, // Store formatted Eastern Time date
       };
 
+      // Validation checks
       if (session.end_time <= session.start_time) {
         throw new HttpException(
           'End time must be after start time',
@@ -84,6 +67,7 @@ export class SessionsController {
 
       const calculatedDuration =
         (session.end_time.getTime() - session.start_time.getTime()) / 1000;
+
       if (Math.abs(calculatedDuration - body.duration) > 1) {
         throw new HttpException(
           'Duration does not match time difference',
@@ -110,7 +94,7 @@ export class SessionsController {
       return await this.sessionsService.getDailyStats();
     } catch (error) {
       throw new HttpException(
-        'Failed to fetch daily stats:' + error,
+        'Failed to fetch daily stats: ' + error,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

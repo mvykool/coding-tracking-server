@@ -19,7 +19,7 @@ export class SessionsService {
       {
         $group: {
           _id: {
-            date: '$date',
+            date: '$date', // Use the pre-formatted date string
             file_type: '$file_type',
           },
           total_duration: { $sum: '$duration' },
@@ -37,7 +37,7 @@ export class SessionsService {
           total_duration: { $sum: '$total_duration' },
         },
       },
-      { $sort: { _id: -1 } },
+      { $sort: { _id: -1 } }, // Sort by date descending
     ]);
   }
 }
